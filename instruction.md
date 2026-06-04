@@ -1,53 +1,89 @@
-# Market Feed Parser — Debug Task
+# Market Feed Parser. Debug Task
 
-You are working on a high-frequency trading infrastructure team. A critical component is a Rust command-line tool called `market-feed-parser` that decodes raw binary market-data feeds.
+We are working on a team that builds systems for high speed trading. The market feed parser is an important tool that takes raw binary market data and turns it into something useful.
 
 ## Binary Protocol
 
-The feed is a packed byte stream. Each message is framed as:
+The data we get is a stream of bytes. Each message in this stream has a format:
 
-```
-[ 2-byte little-endian length (u16) ][ payload of that many bytes ]
-```
+it starts with 2 bytes that tell us the length of the message and then it has the actual message.
 
-Messages appear back-to-back with no delimiters or padding between them. A stream may end with trailing bytes that are too short to form a complete frame — these should be silently ignored.
+These messages are packed tightly together one after the other with no gaps or extra bytes between them.
+
+Sometimes the stream might end with a bytes that are not enough to make a complete message.
+
+We should just ignore these bytes in the market feed parser.
 
 ## The Tool
 
-The compiled binary lives at `/usr/local/bin/market-feed-parser`. Its source code is in `/app/` (a standard Cargo project: `Cargo.toml`, `src/lib.rs`, `src/main.rs`).
+The market feed parser tool is a program that we can run from the command line.
 
-When invoked, it reads raw bytes from **stdin** and writes one JSON line per parsed message to **stdout**:
+It lives in /usr//bin/market-feed-parser.
+
+The code for this tool is in the /app/ directory.
+
+It is a Rust project with files like Cargo.toml, src/lib.rs and src/main.rs.
+
+When we run the market feed parser it reads bytes from the input and writes out one line of JSON for each message it parses to the standard output:
 
 ```json
+
 {"index":0,"length":5,"payload_hex":"48656c6c6f"}
+
 ```
 
-Each line contains:
-- `index` — zero-based message sequence number
-- `length` — payload byte count
-- `payload_hex` — lowercase hex encoding of the payload bytes
+Each line of JSON has a few important pieces of information:
+
+- the index, which is a number that keeps track of how many messages we have seen so far in the market feed parser
+
+- the length, which is how many bytes are in the message
+
+- the payload hex which is the message itself but in a special hex code format.
 
 ## The Problem
 
-Users are reporting two classes of failures:
+Users are telling us that the market feed parser is not working correctly.
 
-1. **Crashes**: The parser panics with `index out of bounds` when fed streams that contain short trailing data or are empty. It should handle these gracefully by stopping parsing and exiting successfully.
+There are two problems:
 
-2. **Missing / corrupted messages**: When a stream contains multiple back-to-back messages, some are silently dropped or their payloads are garbled. For example, a stream with three 5-byte messages only produces one or two output lines, and the payloads after the first one are wrong.
+1. **Crashes**: Sometimes the parser stops working with an index out of bounds error when it sees streams that're empty or have a few extra bytes at the end.
+
+We want the market feed parser to handle these situations smoothly by stopping and exiting without any errors.
+
+2. **Missing or corrupted messages**: When we have messages packed together the parser sometimes loses some of them. Gets their contents wrong.
 
 ## Your Task
 
-1. Examine the Rust source code in `/app/src/` and identify the root cause(s) of both issues.
-2. Fix the parser so that it correctly handles:
-   - Empty input (no output, clean exit)
-   - Single messages
-   - Multiple packed messages
-   - Streams ending with incomplete frames (silently skip the trailing bytes)
-3. Rebuild the binary and install it:
-   ```bash
-   cd /app
-   cargo build --release
-   cp target/release/market-feed-parser /usr/local/bin/market-feed-parser
-   ```
+1. Look at the Rust code for the market feed parser in /app/src/.
 
-Do **not** change the output format — each parsed message must still be a JSON line with `index`, `length`, and `payload_hex` fields.
+Find out what is causing these two problems in the market feed parser.
+
+2. Fix the parser so it can handle:
+
+- Streams that're empty
+
+- Streams with just one message
+
+- Streams with multiple messages packed together
+
+- Streams that end with a few bytes that are not enough to make a complete message
+
+The market feed parser should just ignore these extra bytes.
+
+3. Rebuild the market feed parser tool.
+
+Install it in the place:
+
+```bash
+
+cd /app
+
+cargo build --release
+
+cp target/release/market-feed-parser /usr/local/bin/market-feed-parser
+
+```
+
+Remember we do not want to change the format of the output.
+
+Each parsed message should still be one line of JSON with index, length and payload hex fields, in the market feed parser.
